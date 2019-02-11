@@ -2,46 +2,37 @@
 service: serverless-lambda-sns-example
 
 plugins:
-  - serverless-webpack
+  # - serverless-webpack
   - serverless-offline
+  - serverless-offline-python
   - serverless-offline-sns
 
 # serverless-webpack configuration
 # Enable auto-packing of external modules
-custom:
-  webpack:
-    includeModules:
-      forceExclude:
-        - aws-sdk
-  serverless-offline-sns:
-    port: 4002 # a free port for the sns server to run on
-    debug: true
-  mySnsTopic: "${self:service}-${self:provider.stage}-sns-consume"
-  mySnsTopicArn:
-    local:
-      "arn:aws:sns:us-east-1:123456789012:${self:custom.mySnsTopic}"
-    dev:
-      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.mySnsTopic}" ] ]  }
-    prod:
-     { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.mySnsTopic}" ] ]  }
 
 provider:
   name: aws
   runtime: nodejs8.10
   stage: ${opt:stage,'dev'}
-  region: ${opt:region, 'us-east-1'}  
+  # region: ${opt:region, 'us-west-2'}
+  region: ${opt:region, 'us-east-1'}
   environment: ${file(env.yml):${self:provider.stage}}
+
   iamRoleStatements:
     - Effect: Allow
       Action:
         - SNS:Publish
+      # prettier-ignore
       Resource: { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.mySnsTopic}" ] ]  }
+    - Effect: Allow
+      Action:
+        - SNS:Publish
+      # prettier-ignore
+      Resource: { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.starterSnsTopic}" ] ]  }
+      # Resource: { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.mySnsTopic}" ] ]  }
 
 functions:
-  snsConsume:
-    handler: functions/snsConsume.handler
-    events:
-      - sns: ${self:custom.mySnsTopic}
+  # the trigger
   snsPublish:
     handler: functions/snsPublish.handler
     events:
@@ -51,6 +42,46 @@ functions:
           cors: true
     environment:
       mySnsTopicArn: ${self:custom.mySnsTopicArn.${self:provider.stage}}
-
-
-
+  secondConsume:
+    runtime: python3.6
+    handler: functions/second.handler
+    events:
+      - sns: ${self:custom.mySnsTopic}
+    environment:
+      starterSnsTopic: ${self:custom.starterSnsTopicArn.${self:provider.stage}}
+  snsConsume:
+    handler: functions/snsConsume.handler
+    events:
+      - sns: ${self:custom.starterSnsTopic}
+custom:
+  # webpack:
+  #   includeModules:
+  #     forceExclude:
+  #       - aws-sdk
+  serverless-offline-sns:
+    port: 4002 # a free port for the sns server to run on
+    debug: true
+  mySnsTopic: "${self:service}-${self:provider.stage}-sns-consume"
+  mySnsTopicArn:
+    local:
+      # n.b. this one is east bc of the offline plugin
+      # prettier-ignore
+      "arn:aws:sns:us-east-1:123456789012:${self:custom.mySnsTopic}"
+    dev:
+      # prettier-ignore
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.mySnsTopic}" ] ]  }
+    prod:
+      # prettier-ignore
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.mySnsTopic}" ] ]  }
+  starterSnsTopic: "${self:service}-${self:provider.stage}-sns-starter"
+  starterSnsTopicArn:
+    local:
+      # n.b. this one is east bc of the offline plugin
+      # prettier-ignore
+      "arn:aws:sns:us-east-1:123456789012:${self:custom.starterSnsTopic}"
+    dev:
+      # prettier-ignore
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.starterSnsTopic}" ] ]  }
+    prod:
+      # prettier-ignore
+      { "Fn::Join" : ["", ["arn:aws:sns:${self:provider.region}:", { "Ref" : "AWS::AccountId" }, ":${self:custom.starterSnsTopic}" ] ]  }
