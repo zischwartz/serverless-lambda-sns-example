@@ -10,14 +10,16 @@ import os
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+print('YO')
+
 
 
 def handler(event, context):
     print( 'HELLO FROM PYTHON - consuming')
     print(json.dumps('HELLO FROM PYTHON - consuming'))
-    # file = open("testfile.txt","w")
-    # file.write("Hello World")
-    # file.close()
+    file = open("testfile.txt","w")
+    file.write("Hello World")
+    file.close()
     incoming_payload = event["Records"][0]["Sns"]["Message"]
     print("incoming_payload:")
     print(incoming_payload)
@@ -25,11 +27,17 @@ def handler(event, context):
         # print(record["Sns"])
         # message = json.loads(record["Sns"]["Message"])
         # print("message", message)
+    print("is offline?", os.getenv("IS_OFFLINE"))
+    if os.getenv("IS_OFFLINE"):
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client
+        # end point should work offline, but doesn't seem to 
+        sns = boto3.client('sns', endpoint_url="http://127.0.0.1:4002")
+    else:
+        sns = boto3.client('sns')
 
-    sns = boto3.client('sns')
     topic_arn = os.getenv("starterSnsTopic")
     print('topic arn', topic_arn)
-    # don't actually just pass it blindly of course 
+    # don't actually just pass it blindly of course
     params = {'default':'blarggggg', "passed_from_publish": incoming_payload}
     # params =
     # context_parts = context.invoked_function_arn.split(':')
